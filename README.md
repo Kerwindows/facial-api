@@ -30,5 +30,5 @@ e.g.
     url: process.env.PUBLIC_URL + '/images/jemila.jpg',
     label: 'Jemila Thompson',
     id: '87536357',
-  },
+},
 ```
