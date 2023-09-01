@@ -2260,8 +2260,8 @@ export const comparisonImageUrls = [
     id: "C7B9C9A3",
   },
   {
-    url: process.env.PUBLIC_URL + "/images/JAHNÃE-CHARLES-64a8115280786.png",
-    label: "JAHNÃE",
+    url: process.env.PUBLIC_URL + "/images/JAHNAE-CHARLES-64a8115280786.png",
+    label: "JAHNAE",
     id: "97935FA4",
   },
   {
