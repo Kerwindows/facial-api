@@ -1,13 +1,13 @@
-import * as faceapi from 'face-api.js';
-import React from 'react';
-import Button from '@material-ui/core/Button';
-import CircularProgress from '@material-ui/core/CircularProgress';
-import { css } from '@emotion/react';
-import PulseLoader from 'react-spinners/PulseLoader';
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import { comparisonImageUrls } from './facialRecognitionArray';
+import * as faceapi from "face-api.js";
+import React from "react";
+import Button from "@material-ui/core/Button";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import PulseLoader from "react-spinners/PulseLoader";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogTitle from "@material-ui/core/DialogTitle";
+import { css } from "@emotion/react";
+import { comparisonImageUrls } from "./facialRecognitionArray";
 
 const override = css`
   display: block;
@@ -20,11 +20,14 @@ function App() {
   const [captureVideo, setCaptureVideo] = React.useState(false);
   const [detectionRunning, setDetectionRunning] = React.useState(false);
   const [faceDetected, setFaceDetected] = React.useState(false);
-  const [detectedUserName, setDetectedUserName] = React.useState('');
+  const [detectedUserName, setDetectedUserName] = React.useState("");
   const [canvasContext, setCanvasContext] = React.useState(null);
   const [open, setOpen] = React.useState(false);
+  const [loadingDetection, setLoadingDetection] = React.useState(
+    "Initializing for the first time. Please wait..."
+  );
   const [labeledFaceDescriptors, setLabeledFaceDescriptors] = React.useState(
-    [],
+    []
   );
 
   const videoRef = React.useRef();
@@ -34,7 +37,7 @@ function App() {
 
   React.useEffect(() => {
     const loadModels = async () => {
-      const MODEL_URL = process.env.PUBLIC_URL + '/models';
+      const MODEL_URL = process.env.PUBLIC_URL + "/models";
 
       Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -44,7 +47,7 @@ function App() {
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
       ]).then(() => {
         setModelsLoaded(true);
-        console.log('Models loaded successfully.');
+        console.log("Models loaded successfully.");
       });
     };
     loadModels();
@@ -73,7 +76,7 @@ function App() {
         }
       })
       .catch((err) => {
-        console.error('error:', err);
+        console.error("error:", err);
       });
   };
 
@@ -97,20 +100,20 @@ function App() {
         const detections = await faceapi
           .detectAllFaces(
             videoRef.current,
-            new faceapi.TinyFaceDetectorOptions(),
+            new faceapi.TinyFaceDetectorOptions()
           )
           .withFaceLandmarks()
           .withFaceExpressions()
           .withFaceDescriptors(); // Compute face descriptors
 
-        console.log('Detected faces:', detections);
-
+        console.log("Detected faces:", detections);
+        setLoadingDetection("");
         const resizedDetections = faceapi.resizeResults(
           detections,
-          displaySize,
+          displaySize
         );
 
-        const canvasContext = canvasRef.current.getContext('2d');
+        const canvasContext = canvasRef.current.getContext("2d");
         canvasContext.clearRect(0, 0, videoWidth, videoHeight);
 
         if (!faceDetected) {
@@ -119,41 +122,55 @@ function App() {
           faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
           faceapi.draw.drawFaceExpressions(
             canvasRef.current,
-            resizedDetections,
+            resizedDetections
           );
         }
 
         if (labeledFaceDescriptors.length > 0) {
           // console.log('Have labeled face descriptors:', labeledFaceDescriptors);
-          const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors);
+          // const faceMatcher = new faceapi.SsdMobilenetv1Options({
+          //   minConfidence: 0.5,
+          // });
+
+          const faceMatcher = new faceapi.FaceMatcher(
+            labeledFaceDescriptors,
+            0.4
+          );
           const results = resizedDetections.map((d) =>
-            faceMatcher.findBestMatch(d.descriptor),
+            faceMatcher.findBestMatch(d.descriptor)
           );
 
           for (let i = 0; i < results.length; i++) {
             const bestMatch = results[i];
-            // console.log('Best match:', bestMatch.toString());
-            console.log(bestMatch.label);
-            // console.log(bestMatch);
 
             if (canvasRef && canvasRef.current) {
-              if (bestMatch.label && bestMatch.label !== 'unknown') {
-                // Get the descriptor that matches the label
-                const matchedDescriptor = labeledFaceDescriptors.find(
-                  (descriptor) => descriptor.label === bestMatch.label,
-                );
-                const [label, id] = matchedDescriptor.label.split('__');
-                console.log('User ID:', id); // Output the user ID
-
+              if (bestMatch.label === "unknown") {
+                console.log("Unknown face detected.");
                 setFaceDetected(true);
-                setDetectedUserName(bestMatch.label);
-                clearInterval(intervalId); // Clear the interval after successful detection
-                setOpen(true); // This will open the Dialog box after successful completion
+                setDetectedUserName("Unknown");
+                clearInterval(intervalId);
+                setOpen(true);
+              } else {
+                // Ensure the descriptor exists
+                const matchedDescriptor = labeledFaceDescriptors.find(
+                  (descriptor) =>
+                    descriptor && descriptor.label === bestMatch.label
+                );
+
+                if (matchedDescriptor) {
+                  const [label, id] = matchedDescriptor.label.split("__");
+                  console.log("User ID:", id); // Output the user ID
+
+                  setFaceDetected(true);
+                  setDetectedUserName(bestMatch.label);
+                  clearInterval(intervalId); // Clear the interval after successful detection
+                  setOpen(true); // This will open the Dialog box after successful completion
+                }
               }
             }
           }
         } else {
-          console.log('No labeled face descriptors.');
+          console.log("No labeled face descriptors.");
         }
       }, 1000);
     }
@@ -162,27 +179,33 @@ function App() {
   const loadComparisonImagesAndComputeDescriptors = async () => {
     if (labeledFaceDescriptors.length === 0) {
       // Check if we have cached descriptors
-      const labeledFaceDescriptors = Promise.all(
+      const descriptors = await Promise.all(
         comparisonImageUrls.map(async (image) => {
-          const img = await faceapi.fetchImage(image.url);
-          const detections = await faceapi
-            .detectSingleFace(img)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
+          try {
+            const img = await faceapi.fetchImage(image.url);
+            const detections = await faceapi
+              .detectSingleFace(img)
+              .withFaceLandmarks()
+              .withFaceDescriptor();
 
-          if (detections) {
-            return new faceapi.LabeledFaceDescriptors(
-              `${image.label}__${image.id}`,
-              [detections.descriptor],
-            );
+            if (detections) {
+              return new faceapi.LabeledFaceDescriptors(
+                `${image.label}__${image.id}`,
+                [detections.descriptor]
+              );
+            }
+          } catch (error) {
+            console.error("Error processing image:", image.url, error);
           }
           return null;
-        }),
+        })
       );
 
-      const results = await labeledFaceDescriptors;
-      setLabeledFaceDescriptors(results); // Cache the results
-      return results;
+      const validDescriptors = descriptors.filter(
+        (descriptor) => descriptor !== null
+      );
+      setLabeledFaceDescriptors(validDescriptors); // Cache the results
+      return validDescriptors;
     } else {
       return labeledFaceDescriptors; // Return cached results
     }
@@ -194,7 +217,7 @@ function App() {
     setCaptureVideo(false);
     setDetectionRunning(false);
     setFaceDetected(false);
-    setDetectedUserName('');
+    setDetectedUserName("");
     if (canvasContext) {
       canvasContext.clearRect(0, 0, videoWidth, videoHeight);
     }
@@ -203,9 +226,9 @@ function App() {
   const restartDetection = () => {
     setDetectionRunning(false);
     setFaceDetected(false);
-    setDetectedUserName('');
+    setDetectedUserName("");
     if (canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
+      const context = canvasRef.current.getContext("2d");
       // if (context) {
       //   context.clearRect(0, 0, videoWidth, videoHeight);
       // }
@@ -215,7 +238,7 @@ function App() {
   };
 
   return (
-    <div style={{ textAlign: 'center', padding: '20px' }}>
+    <div style={{ textAlign: "center", padding: "20px" }}>
       {captureVideo && modelsLoaded ? (
         <>
           <Button variant="contained" color="secondary" onClick={closeWebcam}>
@@ -233,12 +256,15 @@ function App() {
             </Button>
           )}
           {detectionRunning && !faceDetected && (
-            <PulseLoader
-              color={'#123abc'}
-              loading={true}
-              css={override}
-              size={15}
-            />
+            <>
+              <PulseLoader
+                color={"#123abc"}
+                loading={true}
+                css={override}
+                size={15}
+              />
+              {loadingDetection}
+            </>
           )}
         </>
       ) : (
@@ -252,26 +278,26 @@ function App() {
           <div>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'center',
-                padding: '10px',
-                position: 'relative',
+                display: "flex",
+                justifyContent: "center",
+                padding: "10px",
+                position: "relative",
               }}
             >
               <video
                 ref={videoRef}
                 height={videoHeight}
                 width={videoWidth}
-                style={{ borderRadius: '10px' }}
+                style={{ borderRadius: "10px" }}
               />
               {faceDetected && (
                 <div
                   style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    fontSize: '25px',
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    fontSize: "25px",
                   }}
                 >
                   Complete
@@ -280,9 +306,9 @@ function App() {
               <canvas
                 ref={canvasRef}
                 style={{
-                  position: 'absolute',
-                  pointerEvents: 'none',
-                  borderRadius: '10px',
+                  position: "absolute",
+                  pointerEvents: "none",
+                  borderRadius: "10px",
                 }}
               />
             </div>
@@ -295,7 +321,9 @@ function App() {
                   aria-describedby="alert-dialog-description"
                 >
                   <DialogTitle id="alert-dialog-title">
-                    {'Welcome ' + detectedUserName.split('__')[0] + '!'}
+                    {detectedUserName === "Unknown"
+                      ? "Face Not Recognized"
+                      : "Welcome " + detectedUserName.split("__")[0] + "!"}
                   </DialogTitle>
                   <DialogActions>
                     <Button
@@ -311,7 +339,7 @@ function App() {
             )}
           </div>
         ) : (
-          <div style={{ marginTop: '10px' }}>
+          <div style={{ marginTop: "10px" }}>
             <CircularProgress />
           </div>
         )
